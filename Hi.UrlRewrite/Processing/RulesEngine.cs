@@ -14,6 +14,8 @@ using Sitecore.Collections;
 using Sitecore.Data;
 using Sitecore.Data.Fields;
 using Sitecore.Data.Items;
+using Sitecore.Links;
+using Sitecore.Resources.Media;
 
 namespace Hi.UrlRewrite.Processing
 {
@@ -161,12 +163,11 @@ namespace Hi.UrlRewrite.Processing
 
             var redirectTo = simpleRedirectItem.Target;
             string actionRewriteUrl;
-            Guid? redirectItem;
             string redirectItemAnchor;
 
-            GetRedirectUrlOrItemId(redirectTo, out actionRewriteUrl, out redirectItem, out redirectItemAnchor);
+            GetRedirectUrlOrItemId(redirectTo, out actionRewriteUrl, out redirectItemAnchor);
 
-            Log.Debug(this, simpleRedirectItem.Database, "Creating Inbound Rule From Simple Redirect Item - {0} - id: {1} actionRewriteUrl: {2} redirectItem: {3}", simpleRedirectItem.Name, simpleRedirectItem.ID.Guid, actionRewriteUrl, redirectItem);
+            Log.Debug(this, simpleRedirectItem.Database, "Creating Inbound Rule From Simple Redirect Item - {0} - id: {1} actionRewriteUrl: {2}", simpleRedirectItem.Name, simpleRedirectItem.ID.Guid, actionRewriteUrl);
 
             var inboundRule = new InboundRule
             {
@@ -176,7 +177,6 @@ namespace Hi.UrlRewrite.Processing
                     Name = "Redirect",
                     StatusCode = RedirectStatusCode.Permanent,
                     RewriteUrl = actionRewriteUrl,
-                    RewriteItemId = redirectItem,
                     RewriteItemAnchor = redirectItemAnchor,
                     StopProcessingOfSubsequentRules = false,
                     HttpCacheability = HttpCacheability.NoCache
@@ -219,20 +219,52 @@ namespace Hi.UrlRewrite.Processing
             return site;
         }
 
-        internal static void GetRedirectUrlOrItemId(LinkField redirectTo, out string actionRewriteUrl, out Guid? redirectItemId, out string redirectItemAnchor)
+        internal static void GetRedirectUrlOrItemId(LinkField redirectTo, out string actionRewriteUrl, out string redirectItemAnchor)
         {
             actionRewriteUrl = null;
-            redirectItemId = null;
             redirectItemAnchor = null;
 
-            if (redirectTo.TargetItem != null)
+            var urlOptions = LinkManager.GetDefaultUrlOptions();
+            urlOptions.AlwaysIncludeServerUrl = true;
+            urlOptions.SiteResolving = true;
+
+            var mediaUrlOptions = new MediaUrlOptions
             {
-                redirectItemId = redirectTo.TargetItem.ID.Guid;
+                AlwaysIncludeServerUrl = true
+            };
+
+            switch (redirectTo.LinkType.ToLower())
+            {
+                case "internal":
+                    // Use LinkMananger for internal links, if link is not empty
+                    actionRewriteUrl = redirectTo.TargetItem != null ? Sitecore.Links.LinkManager.GetItemUrl(redirectTo.TargetItem, urlOptions) : string.Empty;
+                    break;
+                case "media":
+                    // Use MediaManager for media links, if link is not empty
+                    actionRewriteUrl = redirectTo.TargetItem != null ? Sitecore.Resources.Media.MediaManager.GetMediaUrl(redirectTo.TargetItem, mediaUrlOptions) : string.Empty;
+                    break;
+                case "external":
+                    // Just return external links
+                    actionRewriteUrl = redirectTo.Url;
+                    break;
+                case "mailto":
+                    // Just return mailto link
+                    actionRewriteUrl = redirectTo.Url;
+                    break;
+                case "javascript":
+                case "anchor":
+                    throw new ArgumentException("Redirect type is invalid");
+            }
+
+            if (redirectTo.Anchor != null)
+            {
                 redirectItemAnchor = redirectTo.Anchor;
             }
-            else
+
+            if (!string.IsNullOrEmpty(redirectTo.QueryString) && actionRewriteUrl != null)
             {
-                actionRewriteUrl = redirectTo.Url;
+                var uriBuilder = new UriBuilder(new Uri(actionRewriteUrl)) {Query = redirectTo.QueryString};
+                actionRewriteUrl = uriBuilder.ToString();
             }
         }
 
