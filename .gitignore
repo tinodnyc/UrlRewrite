@@ -159,3 +159,9 @@ $RECYCLE.BIN/
 ../Assemblies/
 Assemblies/
 /packages
+
+# Visual Studio Files
+.vs
+
+# Packaged Files
+Package

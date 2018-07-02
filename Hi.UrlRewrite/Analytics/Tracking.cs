@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Web;
+using Sitecore.Analytics.Pipelines.ProcessItem;
 
 namespace Hi.UrlRewrite.Analytics
 {
@@ -59,6 +60,9 @@ namespace Hi.UrlRewrite.Analytics
                         };
 
                         Tracker.Current.CurrentPage.Register(pageEventData);
+
+                        ProcessItemPipeline.Run(new ProcessItemArgs(Tracker.Current.Interaction, redirectItem));
+
                         Tracker.Current.Interaction.AcceptModifications();
                     }
                 }

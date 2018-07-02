@@ -785,11 +785,9 @@ namespace Hi.UrlRewrite
         {
             var redirectTo = baseRewriteUrlItem.RewriteUrl;
             string actionRewriteUrl;
-            Guid? redirectItemId;
             string redirectItemAnchor;
 
-            RulesEngine.GetRedirectUrlOrItemId(redirectTo, out actionRewriteUrl, out redirectItemId, out redirectItemAnchor);
-            redirectAction.RewriteItemId = redirectItemId;
+            RulesEngine.GetRedirectUrlOrItemId(redirectTo, out actionRewriteUrl, out redirectItemAnchor);
             redirectAction.RewriteItemAnchor = redirectItemAnchor;
             redirectAction.RewriteUrl = actionRewriteUrl;
         }

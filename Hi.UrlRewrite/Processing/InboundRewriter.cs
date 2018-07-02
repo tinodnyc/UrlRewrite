@@ -15,6 +15,7 @@ using System.Linq;
 using System.Net;
 using System.Text.RegularExpressions;
 using System.Web;
+using Sitecore.Data.Items;
 
 namespace Hi.UrlRewrite.Processing
 {
@@ -387,18 +388,11 @@ namespace Hi.UrlRewrite.Processing
             var redirectAction = inboundRule.Action as Redirect;
 
             var rewriteUrl = redirectAction.RewriteUrl;
-            var rewriteItemId = redirectAction.RewriteItemId;
-            var rewriteItemAnchor = redirectAction.RewriteItemAnchor;
 
-            if (string.IsNullOrEmpty(rewriteUrl) && rewriteItemId == null)
+            if (string.IsNullOrEmpty(rewriteUrl))
             {
                 ruleResult.RuleMatched = false;
                 return;
-            }
-
-            if (rewriteItemId.HasValue)
-            {
-                rewriteUrl = GetRewriteUrlFromItemId(rewriteItemId.Value, rewriteItemAnchor);
             }
 
 
@@ -428,18 +422,12 @@ namespace Hi.UrlRewrite.Processing
             var redirectAction = inboundRule.Action as Rewrite;
 
             var rewriteUrl = redirectAction.RewriteUrl;
-            var rewriteItemId = redirectAction.RewriteItemId;
             var rewriteItemAnchor = redirectAction.RewriteItemAnchor;
 
-            if (string.IsNullOrEmpty(rewriteUrl) && rewriteItemId == null)
+            if (string.IsNullOrEmpty(rewriteUrl))
             {
                 ruleResult.RuleMatched = false;
                 return;
-            }
-
-            if (rewriteItemId.HasValue)
-            {
-                rewriteUrl = GetRewriteUrlFromItemId(rewriteItemId.Value, rewriteItemAnchor);
             }
 
             // process token replacements
@@ -487,7 +475,7 @@ namespace Hi.UrlRewrite.Processing
                 return;
             }
 
-            string rewriteUrl = GetRewriteUrlFromItemId(rewriteItemId.Value, null);
+            string rewriteUrl = GetRewriteUrlFromItemId(rewriteItemId.Value);
 
 
             // process token replacements
@@ -517,46 +505,31 @@ namespace Hi.UrlRewrite.Processing
             return null;
         }
 
-        private string GetRewriteUrlFromItemId(Guid rewriteItemId, string rewriteItemAnchor)
+        private string GetRewriteUrlFromItemId(Guid itemId)
         {
-            string rewriteUrl = null;
+            var item = Sitecore.Context.Database.GetItem(new ID(itemId));
 
-            var db = Sitecore.Context.Database;
-            if (db != null)
+            if (item == null)
             {
-                var rewriteItem = db.GetItem(new ID(rewriteItemId));
-
-                if (rewriteItem != null)
-                {
-                    if (rewriteItem.Paths.IsMediaItem)
-                    {
-                        var mediaUrlOptions = new MediaUrlOptions
-                        {
-                            AlwaysIncludeServerUrl = true
-                        };
-
-                        rewriteUrl = MediaManager.GetMediaUrl(rewriteItem, mediaUrlOptions);
-                    }
-                    else
-                    {
-                        var urlOptions = LinkManager.GetDefaultUrlOptions();
-                        urlOptions.AlwaysIncludeServerUrl = true;
-                        urlOptions.SiteResolving = true;
-
-                        rewriteUrl = LinkManager.GetItemUrl(rewriteItem, urlOptions);
-                    }
-
-                    if (!string.IsNullOrEmpty(rewriteItemAnchor))
-                    {
-                        rewriteUrl += string.Format("#{0}", rewriteItemAnchor);
-                    }
-                }
+                return null;
             }
 
-            return rewriteUrl;
+            if (item.Paths.IsMediaItem)
+            {
+                var mediaUrlOptions = new MediaUrlOptions
+                {
+                    AlwaysIncludeServerUrl = true
+                };
+                var mediaItem = new MediaItem(item);
+                return MediaManager.GetMediaUrl(mediaItem, mediaUrlOptions);
+            }
+            else
+            {
+                var urlOptions = LinkManager.GetDefaultUrlOptions();
+                urlOptions.AlwaysIncludeServerUrl = true;
+                urlOptions.SiteResolving = true;
+                return LinkManager.GetItemUrl(item, urlOptions);
+            }
         }
-
-
-
     }
 }
